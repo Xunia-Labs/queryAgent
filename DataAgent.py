@@ -44,7 +44,7 @@ class DatabaseAgent:
             print(f"Error fetching table preview: {str(e)}")
             return None
 
-    def generate_sql_query(self, user_query: str, api_key: str) -> str:
+    def generate_sql_query(self, user_query: str, api_key: str, model: str = "gpt-4") -> str:
         if not api_key:
             raise ValueError("OpenAI API key is required!")
         
@@ -67,7 +67,7 @@ class DatabaseAgent:
         
         try:
             response = client.chat.completions.create(
-                model="gpt-4",
+                model=model,
                 messages=[
                     {"role": "system", "content": "You are a SQL expert. Generate only SQL queries without any explanation."},
                     {"role": "user", "content": prompt}
@@ -88,7 +88,7 @@ class DatabaseAgent:
     def close_connection(self):
         self.client.close()
 
-def generate_visualizations(data: pd.DataFrame, user_query: str, api_key: str):
+def generate_visualizations(data: pd.DataFrame, user_query: str, api_key: str, model: str = "gpt-4"):
     if data.empty:
         return
     
@@ -99,14 +99,14 @@ def generate_visualizations(data: pd.DataFrame, user_query: str, api_key: str):
     create insightful visualizations for the below sample data:
     {sample_data}
     
-    Based on the user query: "{user_query}", generate the most  insightful visualizations.
+    Based on the user query: "{user_query}", generate the most insightful visualizations.
     Provide a Python code snippet using Matplotlib and Seaborn to generate these plots.
     Only return the code, no explanations.
     """
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a data visualization expert. Generate only Python code snippets."},
                 {"role": "user", "content": prompt}
@@ -136,17 +136,9 @@ def generate_visualizations(data: pd.DataFrame, user_query: str, api_key: str):
 
 def main():
     st.title("Trade Data Analysis Agent")
-    # Load environment variables from .env file
-    # load_dotenv()
-    # api_key = os.getenv('OPENAI_API_KEY')
-    api_key = st.sidebar.text_input("Enter your OpenAI API key:", type="password")
-    if not api_key:
-        st.warning("Please enter your OpenAI API key in the sidebar to proceed.")
-
-        st.stop()
     
-    if 'openai_api_key' not in st.session_state:
-        st.session_state.openai_api_key = api_key
+    # Get API key from secrets
+    api_key = st.secrets["openai"]["api_key"]
     
     if 'agent' not in st.session_state:
         st.session_state.agent = DatabaseAgent()
@@ -177,6 +169,14 @@ def main():
         else:
             st.sidebar.error("Failed to fetch table preview.")
     
+    # Add this in the sidebar section of main()
+    model_option = st.sidebar.selectbox(
+        "Select GPT Model:",
+        ["gpt-3.5-turbo", "gpt-4", "gpt-4o-mini"],
+        index=1  # Default to gpt-4
+    )
+    
+
     st.write("Ask questions about your trade data in natural language!")
     
     user_query = st.text_input("Enter your question:", 
@@ -185,7 +185,7 @@ def main():
     if user_query:
         try:
             with st.spinner("Generating SQL query..."):
-                sql_query = st.session_state.agent.generate_sql_query(user_query, api_key)
+                sql_query = st.session_state.agent.generate_sql_query(user_query, api_key, model_option)
                 st.code(sql_query, language="sql")
             
             with st.spinner("Executing query..."):
@@ -201,7 +201,7 @@ def main():
                         mime="text/csv"
                     )
                     
-                    generate_visualizations(results, user_query, api_key)
+                    generate_visualizations(results, user_query, api_key, model_option)
                 else:
                     st.info("No results found for your query.")
                     
