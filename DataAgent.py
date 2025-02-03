@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 
 # ClickHouse connection details
 CLICKHOUSE_CONFIG = {
-    'host': 'yt8dfy191y.eastus2.azure.clickhouse.cloud',
-    'user': 'default',
-    'password': 'a2~8U2HJe.uxs',
-    'secure': True
+    'host': st.secrets["clickhouse"]["host"],
+    'user': st.secrets["clickhouse"]["user"],
+    'password': st.secrets["clickhouse"]["password"],
+    'secure': st.secrets["clickhouse"]["secure"]
 }
 
 class DatabaseAgent:
